@@ -3,33 +3,68 @@ package main
 import (
 	"bufio"
 	"fmt"
+	"io"
 	"net"
 	"net/http"
+	"os"
+	"sync"
+	"time"
 )
 
 func main() {
-	httpfetch()
+	ready := make(chan bool)
+	var wg sync.WaitGroup
+
+	wg.Add(1)
+	go func() {
+		defer wg.Done()
+		tcpserver1(8080, ready)
+	}()
+
+	<-ready
+
+	tcpclient2()
+
+	wg.Wait()
 }
 
-func httpfetch() {
-	response, err := http.Get("https://example.com")
+func tcpclient2() {
+	conn, err := net.Dial("tcp", "localhost:8080")
 	if err != nil {
-		fmt.Println("Error fetching page data:", err)
+		fmt.Println("Error connecting to server:", err)
 		return
 	}
-	defer response.Body.Close()
 
-	scanner := bufio.NewScanner(response.Body)
-	for scanner.Scan() {
-		fmt.Println(scanner.Text())
-	}
-	if err := scanner.Err(); err != nil {
-		fmt.Println("Error reading response body:", err)
-		return
+	defer conn.Close()
+	fmt.Println("Connected to server. Type your message:")
+
+	for {
+		reader := bufio.NewReader(os.Stdin)
+		fmt.Print(">> ")
+		message, err := reader.ReadString('\n')
+
+		if err != nil {
+			fmt.Println("Error reading message:", err)
+			continue
+		}
+
+		_, err = conn.Write([]byte(message))
+		if err != nil {
+			fmt.Println("Error sending message:", err)
+			break
+		}
+
+		response, err := bufio.NewReader(conn).ReadString('\n')
+		if err != nil {
+			fmt.Println("Error reading from server response:", err)
+			break
+		}
+
+		fmt.Println("Server response:", response)
 	}
 }
 
-func tcpserver1(port int) {
+func tcpserver1(port int, ready chan<- bool) {
 	ln, err := net.Listen("tcp", fmt.Sprintf(":%d", port))
 	if err != nil {
 		fmt.Println("Error:", err)
@@ -38,6 +73,7 @@ func tcpserver1(port int) {
 	defer ln.Close()
 
 	fmt.Printf("Listening on port %d...\n", port)
+	ready <- true
 
 	for {
 		conn, err := ln.Accept()
@@ -51,16 +87,36 @@ func tcpserver1(port int) {
 
 func tcpserver1_handleconnection(conn net.Conn) {
 	defer conn.Close()
-	fmt.Println("Client connected.")
 
-	message, err := bufio.NewReader(conn).ReadString('\n')
+	for {
+		message, err := bufio.NewReader(conn).ReadString('\n')
+		if err != nil {
+			fmt.Println("Error reading message from client:", err)
+			return
+		}
+
+		fmt.Println("Message from client:", message)
+		conn.Write([]byte("Hello, client!\n"))
+	}
+}
+
+func httpfetch() {
+	start := time.Now()
+	response, err := http.Get("https://example.com")
 	if err != nil {
-		fmt.Println("Error:", err)
+		fmt.Println("Error fetching page data:", err)
 		return
 	}
+	defer response.Body.Close()
 
-	fmt.Println("Message from client:", message)
-	conn.Write([]byte("Hello, client!\n"))
+	body, err := io.ReadAll(response.Body)
+	if err != nil {
+		fmt.Println("Error reading response body:", err)
+		return
+	}
+	fmt.Println("Webpage content:")
+	fmt.Println(string(body))
+	fmt.Printf("Time elapsed: %.3fs\n", time.Since(start).Seconds())
 }
 
 func tcpclient1() {
