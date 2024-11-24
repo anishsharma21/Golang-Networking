@@ -12,7 +12,86 @@ import (
 )
 
 func main() {
-	setupClientServer()
+	setupChatServerAndClients()
+}
+
+func setupChatServerAndClients() {
+	const port uint16 = 8080
+	ready := make(chan bool)
+	var wg sync.WaitGroup
+
+	wg.Add(1)
+	go func() {
+		defer wg.Done()
+		tcpChatServer(port, ready)
+	}()
+
+	// wait for server to startup before creating clients
+	<-ready
+
+	go client(port)
+
+	wg.Wait()
+}
+
+var clients = make(map[net.Conn]string)
+var mu sync.Mutex
+
+func tcpChatServer(port uint16, ready chan<- bool) {
+	listener, err := net.Listen("tcp", fmt.Sprintf(":%d", port))
+	if err != nil {
+		fmt.Println("Error starting server:", err)
+		return
+	}
+
+	fmt.Printf("Server started on port %d...\n", port)
+	ready <- true
+
+	for {
+		conn, err := listener.Accept()
+		if err != nil {
+			fmt.Println("Error connecting to client:", err)
+			continue
+		}
+
+		go handleChatClient(conn)
+	}
+}
+
+func handleChatClient(conn net.Conn) {
+	defer conn.Close()
+
+	mu.Lock()
+	clients[conn] = conn.RemoteAddr().String()
+	mu.Unlock()
+
+	for {
+		message, err := bufio.NewReader(conn).ReadString('\n')
+		if err != nil {
+			fmt.Printf("Error reading from client %s: %e\n", conn.RemoteAddr().String(), err)
+			break
+		}
+
+		broadcastChatMessage(message, conn)
+	}
+
+	mu.Lock()
+	delete(clients, conn)
+	mu.Unlock()
+}
+
+func broadcastChatMessage(message string, sender net.Conn) {
+	mu.Lock()
+	defer mu.Unlock()
+	for client := range clients {
+		if client != sender {
+			_, err := client.Write([]byte(message))
+			if err != nil {
+				fmt.Printf("Error sending message from client %s to client %s: %e\n", sender.RemoteAddr().String(), client.RemoteAddr().String(), err)
+				return
+			}
+		}
+	}
 }
 
 func setupClientServer() {
@@ -47,7 +126,7 @@ func client(port uint16) {
 
 	for {
 		reader := bufio.NewReader(os.Stdin)
-		fmt.Println(">> ")
+		fmt.Print(">> ")
 
 		message, err := reader.ReadString('\n')
 		if err != nil {
