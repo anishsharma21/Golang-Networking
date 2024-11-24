@@ -4,10 +4,29 @@ import (
 	"bufio"
 	"fmt"
 	"net"
+	"net/http"
 )
 
 func main() {
-	tcpserver1(8080)
+	httpfetch()
+}
+
+func httpfetch() {
+	response, err := http.Get("https://example.com")
+	if err != nil {
+		fmt.Println("Error fetching page data:", err)
+		return
+	}
+	defer response.Body.Close()
+
+	scanner := bufio.NewScanner(response.Body)
+	for scanner.Scan() {
+		fmt.Println(scanner.Text())
+	}
+	if err := scanner.Err(); err != nil {
+		fmt.Println("Error reading response body:", err)
+		return
+	}
 }
 
 func tcpserver1(port int) {
