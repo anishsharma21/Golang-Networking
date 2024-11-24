@@ -7,7 +7,41 @@ import (
 )
 
 func main() {
-	tcpclient1()
+	tcpserver1(8080)
+}
+
+func tcpserver1(port int) {
+	ln, err := net.Listen("tcp", fmt.Sprintf(":%d", port))
+	if err != nil {
+		fmt.Println("Error:", err)
+		return
+	}
+	defer ln.Close()
+
+	fmt.Printf("Listening on port %d...\n", port)
+
+	for {
+		conn, err := ln.Accept()
+		if err != nil {
+			fmt.Println("Error:", err)
+			continue
+		}
+		go tcpserver1_handleconnection(conn)
+	}
+}
+
+func tcpserver1_handleconnection(conn net.Conn) {
+	defer conn.Close()
+	fmt.Println("Client connected.")
+
+	message, err := bufio.NewReader(conn).ReadString('\n')
+	if err != nil {
+		fmt.Println("Error:", err)
+		return
+	}
+
+	fmt.Println("Message from client:", message)
+	conn.Write([]byte("Hello, client!\n"))
 }
 
 func tcpclient1() {
