@@ -12,6 +12,104 @@ import (
 )
 
 func main() {
+	setupClientServer()
+}
+
+func setupClientServer() {
+	const port uint16 = 8080;
+	var wg sync.WaitGroup
+	ready := make(chan bool)
+
+	wg.Add(1)
+	go func() {
+		defer wg.Done()
+		tcpServer(port, ready)
+	}()
+
+	<-ready
+
+	for range 10 {
+		go client(8080)
+	}
+
+	wg.Wait()
+}
+
+func client(port uint16) {
+	conn, err := net.Dial("tcp", fmt.Sprintf("localhost:%d", port))
+	if err != nil {
+		fmt.Println("Error connecting to server:", err)
+		return
+	}
+	defer conn.Close()
+
+	fmt.Println("Client connected. Send a message:")
+
+	for {
+		reader := bufio.NewReader(os.Stdin)
+		fmt.Println(">> ")
+
+		message, err := reader.ReadString('\n')
+		if err != nil {
+			fmt.Println("Error reading message from client:", err)
+			continue
+		}
+
+		_, err = conn.Write([]byte(message))
+		if err != nil {
+			fmt.Println("Error sending message to server:", err)
+			return
+		}
+
+		response, err := bufio.NewReader(conn).ReadString('\n')
+		if err != nil {
+			fmt.Println("Error receiving response from server:", err)
+			return
+		}
+
+		fmt.Println("Response from server:", response)
+	}
+}
+
+func handleConnection(conn net.Conn) {
+	defer conn.Close()
+	fmt.Println("Connected to client:", conn.RemoteAddr())
+
+	for {
+		message, err := bufio.NewReader(conn).ReadString('\n')
+		if err != nil {
+			fmt.Println("Error reading message:", err)
+			return
+		}
+		fmt.Println("Client message:", message)
+
+		conn.Write([]byte("Hello client!"))
+	}
+}
+
+func tcpServer(port uint16, ready chan<- bool) {
+	listener, err := net.Listen("tcp", fmt.Sprintf(":%d", port))
+	if err != nil {
+		fmt.Println("Error starting server:", err)
+		return
+	}
+	defer listener.Close()
+
+
+	fmt.Printf("Server is running on port %d...\n", port)
+	ready <- true
+
+	for {
+		conn, err := listener.Accept()
+		if err != nil {
+			fmt.Println("Error accepting connection:", err)
+			continue
+		}
+		go handleConnection(conn)
+	}
+}
+
+func tcpServerClientSetup() {
 	ready := make(chan bool)
 	var wg sync.WaitGroup
 
