@@ -4,30 +4,31 @@ import (
 	"fmt"
 	"net"
 	"os"
+	"strconv"
 )
 
 func main() {
-	if len(os.Args) < 2 {
-		fmt.Println("no argument given - choose from server (s) or client (c)")
-		return
+	var port uint16 = 8080
+	if len(os.Args) >= 2 {
+		portInt, err := strconv.ParseInt(os.Args[1], 10, 16)
+		if err != nil {
+			fmt.Printf("Error parsing %s: %e\n", os.Args[1], err)
+			return
+		}
+		port = uint16(portInt)
 	}
-	if os.Args[1] == "s" {
-		tcpserver()
-	} else if os.Args[1] == "c" {
-		tcpclient()
-	} else {
-		fmt.Println("invalid argument - choose from server (s) or client (c)")
-	}
+	fmt.Println("Port:", port)
+	tcpserver(port)
 }
 
-func tcpserver() {
-	listener, err := net.Listen("tcp", ":8080")
+func tcpserver(port uint16) {
+	listener, err := net.Listen("tcp", fmt.Sprintf(":%d", port))
 	if err != nil {
 		fmt.Println("Error starting TCP server:", err)
 		return
 	}
 	defer listener.Close()
-	fmt.Println("TCP server started on port 8080...")
+	fmt.Printf("TCP server started on port %s...\n", listener.Addr().String())
 
 	for {
 		conn, err := listener.Accept()
@@ -36,6 +37,12 @@ func tcpserver() {
 			continue
 		}
 		fmt.Println("Client connected:", conn.RemoteAddr().String())
+		_, err = conn.Write([]byte("WELCOME!\n>> "))
+		if err != nil {
+			fmt.Println("Error sending welcome message to client:", err)
+			conn.Close()
+			continue
+		}
 		go handleClient(conn)
 	}
 }
@@ -50,13 +57,16 @@ func handleClient(conn net.Conn) {
 			fmt.Println("Connection closed by client:", err)
 			return
 		}
-
-		clientData := string(buffer[:n])
+		clientData := string(buffer[:n-1])
 		fmt.Println("Received from client:", clientData)
-		conn.Write([]byte("Echo: " + clientData))
+		conn.Write([]byte("Echo: " + reverse(&clientData) + "\n>> "))
 	}
 }
 
-func tcpclient() {
-
+func reverse(s *string) string {
+	runes := []rune(*s)
+	for i, j := 0, len(*s) - 1; i < j; i, j = i+1, j-1 {
+		runes[i], runes[j] = runes[j], runes[i]
+	}
+	return string(runes)
 }
