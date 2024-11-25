@@ -2,11 +2,13 @@ package main
 
 import (
 	"bufio"
+	"context"
 	"fmt"
 	"net"
 	"os"
 	"strconv"
 	"strings"
+	"time"
 )
 
 func main() {
@@ -44,12 +46,30 @@ func main() {
 			return
 		}
 
-		response, err := bufio.NewReader(conn).ReadString('\n')
-		if err != nil {
+		ctx, cancel := context.WithTimeout(context.Background(), 5 * time.Second)
+		defer cancel()
+
+		responseChan := make(chan string)
+		errorChan := make(chan error)
+
+		go func() {
+			response, err := bufio.NewReader(conn).ReadString('\n')
+			if err != nil {
+				errorChan <- err
+				return
+			}
+			responseChan <- response
+		}()
+
+		select {
+		case response := <- responseChan:
+			fmt.Println("Server:", strings.TrimSpace(response))
+		case err := <- errorChan:
 			fmt.Println("Error reading response from server:", err)
 			return
+		case <-ctx.Done():
+			fmt.Println("Response time out.")
+			return
 		}
-
-		fmt.Println("Server:", strings.TrimSpace(response))
 	}
 }
