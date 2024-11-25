@@ -46,13 +46,6 @@ func tcpserver(port uint16) {
 			continue
 		}
 		fmt.Println("Connected to client:", conn.RemoteAddr().String())
-		_, err = conn.Write([]byte("\nWELCOME\n>> "))
-		if err != nil {
-			fmt.Printf("Error sending welcome message to %s: %e\n", conn.RemoteAddr().String(), err)
-			conn.Close()
-			serverErrCount++
-			continue
-		}
 		go handleClient(conn)
 	}
 }
@@ -62,13 +55,13 @@ func handleClient(conn net.Conn) {
 	for {
 		message, err := bufio.NewReader(conn).ReadString('\n')
 		if err != nil {
-			fmt.Printf("%s disconnected: %e\n", conn.RemoteAddr().String(), err)
+			fmt.Printf("%s disconnected\n", conn.RemoteAddr().String())
 			return
 		}
 
 		fmt.Printf("Message from %s: %s\n", conn.RemoteAddr().String(), strings.TrimSpace(message))
 
-		_, err = conn.Write([]byte("Echo: "+ strings.TrimSpace(message) + "\n>> "))
+		_, err = conn.Write([]byte(message))
 		if err != nil {
 			fmt.Printf("Error sending message to %s: %e\n", conn.RemoteAddr().String(), err)
 			return
