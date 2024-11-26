@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"log"
 	"net"
+	"strings"
 )
 
 const port uint16 = 8080
@@ -34,9 +35,10 @@ func handleClient(conn net.Conn) {
 	scanner := bufio.NewScanner(conn)
 
 	for scanner.Scan() {
-		message := scanner.Text()
+		message := strings.TrimSpace(scanner.Text())
 		log.Printf("%s: %s\n", conn.RemoteAddr().String(), message)
-		_, err := conn.Write([]byte(message))
+		log.Printf("%s bytes representation: %v\n", conn.RemoteAddr().String(), []byte(message))
+		_, err := conn.Write([]byte(message + "\n"))
 		if err != nil {
 			log.Printf("Error sending message to %s: %v\n", conn.RemoteAddr().String(), err)
 			return
