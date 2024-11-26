@@ -33,7 +33,7 @@ func main() {
 func handleClient(conn net.Conn) {
 	defer conn.Close()
 	reader := bufio.NewReader(conn)
-	packet := make([]byte, 1024)
+	packet := make([]byte, 64)
 
 	for {
 		_, err := reader.Read(packet)
