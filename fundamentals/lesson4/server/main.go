@@ -7,7 +7,7 @@ import (
 	"net"
 )
 
-// TODO custom protocol with length prefixed data
+// TODO create TCP client which implements 2-byte data size prefix custom protocol
 // TODO broadcast functionality
 // TODO timeouts for read operations
 
@@ -34,20 +34,29 @@ func main() {
 
 func handleClient(client net.Conn) {
 	defer client.Close()
-	packet := make([]byte, 8)
+	lengthBuff := make([]byte, 2)
 
 	for {
-		_, err := client.Read(packet)
+		_, err := client.Read(lengthBuff)
 		if err != nil {
 			if err != io.EOF {
-				log.Printf("Error receiving message from %s: %v\n", client.RemoteAddr().String(), err)
+				log.Printf("Error receiving length of message from %s: %v\n", client.RemoteAddr().String(), err)
 			}
 			break
 		}
 
+		messageLength := uint16(lengthBuff[0]) << 8 + uint16(lengthBuff[1])
+		fmt.Println("Size of message:", messageLength)
+
+		packet := make([]byte, messageLength)
+		_, err = client.Read(packet)
+		if err != nil {
+			log.Printf("Error receiving message from %s: %v\n", client.RemoteAddr().String(), err)
+		}
+
 		fmt.Printf("%s: %v\n", client.RemoteAddr().String(), packet)
 
-		_, err = client.Write(packet)
+		_, err = client.Write([]byte("8 bytes:" + string(packet)))
 		if err != nil {
 			log.Printf("Error sending message to %s: %v\n", client.RemoteAddr().String(), err)
 			break
