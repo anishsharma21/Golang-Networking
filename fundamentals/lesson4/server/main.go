@@ -10,6 +10,8 @@ import (
 // TODO create TCP client which implements 2-byte data size prefix custom protocol
 // TODO broadcast functionality
 // TODO timeouts for read operations
+// TODO first message is to check that client understands protocol
+// TODO improve concurrency
 
 const defaultPort uint16 = 8080
 
@@ -54,7 +56,7 @@ func handleClient(client net.Conn) {
 			log.Printf("Error receiving message from %s: %v\n", client.RemoteAddr().String(), err)
 		}
 
-		fmt.Printf("%s: %v\n", client.RemoteAddr().String(), packet)
+		fmt.Printf("%s: %s\n", client.RemoteAddr().String(), string(packet))
 
 		_, err = client.Write([]byte("8 bytes:" + string(packet)))
 		if err != nil {
