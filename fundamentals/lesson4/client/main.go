@@ -10,6 +10,7 @@ import (
 	"net"
 	"os"
 	"strings"
+	"time"
 )
 
 func main() {
@@ -40,8 +41,11 @@ func main() {
 		if err != nil {
 			log.Fatalf("Error sending message to server: %v\n", err)
 		}
+		messageSentTime := time.Now()
 
 		lengthBuff := make([]byte, 2)
+
+		conn.SetReadDeadline(time.Now().Add(5 * time.Second))
 		_, err = conn.Read(lengthBuff)
 		if err != nil {
 			if err != io.EOF {
@@ -49,9 +53,12 @@ func main() {
 			}
 			break
 		}
+		log.Printf("Response received in: %.7fs\n", time.Since(messageSentTime).Seconds())
 
 		responseLength := uint16(lengthBuff[0]) << 8 + uint16(lengthBuff[1])
 		responseBuff := make([]byte, responseLength)
+
+		conn.SetReadDeadline(time.Now().Add(5 * time.Second))
 		_, err = conn.Read(responseBuff)
 		if err != nil {
 			log.Fatalf("Error receiving response from server: %v\n", err)

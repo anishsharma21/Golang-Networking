@@ -11,8 +11,8 @@ import (
 
 // TODO broadcast functionality
 // TODO timeouts for read operations
-// TODO first message is to check that client understands protocol
 // TODO improve concurrency
+// TODO improve memory efficiency
 
 const defaultPort uint16 = 8080
 
@@ -38,6 +38,9 @@ func main() {
 func handleClient(client net.Conn) {
 	defer client.Close()
 	lengthBuff := make([]byte, 2)
+
+	// TODO first back and forth should be to confirm that client understands protocl
+	// otherwise, disconnect from client
 
 	for {
 		_, err := client.Read(lengthBuff)
