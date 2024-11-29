@@ -1,13 +1,14 @@
 package main
 
 import (
+	"bytes"
+	"encoding/binary"
 	"fmt"
 	"io"
 	"log"
 	"net"
 )
 
-// TODO create TCP client which implements 2-byte data size prefix custom protocol
 // TODO broadcast functionality
 // TODO timeouts for read operations
 // TODO first message is to check that client understands protocol
@@ -48,23 +49,29 @@ func handleClient(client net.Conn) {
 		}
 
 		messageLength := uint16(lengthBuff[0]) << 8 + uint16(lengthBuff[1])
-		fmt.Println("Size of message:", messageLength)
-
 		packet := make([]byte, messageLength)
+
 		_, err = client.Read(packet)
 		if err != nil {
 			log.Printf("Error receiving message from %s: %v\n", client.RemoteAddr().String(), err)
 		}
 
-		fmt.Printf("%s: %s\n", client.RemoteAddr().String(), string(packet))
+		fmt.Printf("%s: %s, %d\n", client.RemoteAddr().String(), string(packet), messageLength)
 
-		_, err = client.Write([]byte("8 bytes:" + string(packet)))
+		responseMessage := []byte(fmt.Sprintf("%v\n", packet))
+		responseMessageLength := uint16(len(responseMessage))
+
+		var buf bytes.Buffer
+		err = binary.Write(&buf, binary.BigEndian, responseMessageLength)
 		if err != nil {
-			log.Printf("Error sending message to %s: %v\n", client.RemoteAddr().String(), err)
-			break
+			log.Fatalf("Error writing length to buffer: %v\n", err)
 		}
+		buf.Write(responseMessage)
 
-		copy(packet, make([]byte, len(packet)))
+		_, err = client.Write(buf.Bytes())
+		if err != nil {
+			log.Fatalf("Error sending message to client %s: %v\n", client.RemoteAddr().String(), err)
+		}
 	}
 
 	log.Printf("Disconnected from %s\n", client.RemoteAddr().String())
