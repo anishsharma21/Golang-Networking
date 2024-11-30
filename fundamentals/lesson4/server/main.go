@@ -7,14 +7,18 @@ import (
 	"io"
 	"log"
 	"net"
+	"sync"
 )
 
 // TODO broadcast functionality
-// TODO timeouts for read operations
 // TODO improve concurrency
 // TODO improve memory efficiency
+// TODO tidy up code, plan this out a lil
 
 const defaultPort uint16 = 8080
+var clients = make(map[net.Conn]string)
+var mu sync.Mutex
+const privateKey string = "tcpinit8989"
 
 func main() {
 	listener, err := net.Listen("tcp", fmt.Sprintf(":%d", defaultPort))
@@ -30,17 +34,51 @@ func main() {
 			log.Println("Error connecting to client:", err)
 			continue
 		}
-		log.Println("Connected to client:", conn.RemoteAddr().String())
 		go handleClient(conn)
 	}
 }
 
 func handleClient(client net.Conn) {
 	defer client.Close()
-	lengthBuff := make([]byte, 2)
+	defer disconnectClient(client)
 
-	// TODO first back and forth should be to confirm that client understands protocl
-	// otherwise, disconnect from client
+	log.Printf("Establishing connection to client %s...\n", client.RemoteAddr().String())
+
+	lengthBuff := make([]byte, 2)
+	_, err := client.Read(lengthBuff)
+	if err != nil {
+		if err != io.EOF {
+			log.Printf("Error receiving length of message from %s: %v\n", client.RemoteAddr().String(), err)
+			return
+		}
+		log.Printf("Disconnected from %s\n", client.RemoteAddr().String())
+		return
+	}
+
+	messageLength := uint16(lengthBuff[0]) << 8 + uint16(lengthBuff[1])
+	messageBuffer := make([]byte, messageLength)
+	_, err = client.Read(messageBuffer)
+	if err != nil {
+		log.Printf("Error receiving message from %s: %v\n", client.RemoteAddr().String(), err)
+		return
+	}
+
+	if string(messageBuffer) != privateKey {
+		log.Printf("Failed to establish connection with %s: invalid connection key: '%s'\n", client.RemoteAddr().String(), string(messageBuffer))
+		client.Write([]byte("Invalid key. Failed to authenticate with server."))
+		return
+	}
+
+	log.Printf("Connected to %s.", client.RemoteAddr().String())
+	_, err = client.Write([]byte("Connected to server."))
+	if err != nil {
+		log.Printf("Failed to send confirmation message to %s\n", client.RemoteAddr().String())
+		return
+	}
+
+	mu.Lock()
+	clients[client] = client.RemoteAddr().String()
+	mu.Unlock()
 
 	for {
 		_, err := client.Read(lengthBuff)
@@ -57,6 +95,7 @@ func handleClient(client net.Conn) {
 		_, err = client.Read(packet)
 		if err != nil {
 			log.Printf("Error receiving message from %s: %v\n", client.RemoteAddr().String(), err)
+			break
 		}
 
 		fmt.Printf("%s: %s, %d\n", client.RemoteAddr().String(), string(packet), messageLength)
@@ -67,15 +106,23 @@ func handleClient(client net.Conn) {
 		var buf bytes.Buffer
 		err = binary.Write(&buf, binary.BigEndian, responseMessageLength)
 		if err != nil {
-			log.Fatalf("Error writing length to buffer: %v\n", err)
+			log.Printf("Error writing length to buffer: %v\n", err)
+			break
 		}
 		buf.Write(responseMessage)
 
 		_, err = client.Write(buf.Bytes())
 		if err != nil {
-			log.Fatalf("Error sending message to client %s: %v\n", client.RemoteAddr().String(), err)
+			log.Printf("Error sending message to client %s: %v\n", client.RemoteAddr().String(), err)
+			break
 		}
 	}
+}
+
+func disconnectClient(client net.Conn) {
+	mu.Lock()
+	delete(clients, client)
+	mu.Unlock()
 
 	log.Printf("Disconnected from %s\n", client.RemoteAddr().String())
 }
