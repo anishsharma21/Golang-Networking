@@ -15,51 +15,25 @@ import (
 
 // TODO clear current line when other client messages broadcasted with this: fmt.Print("\r\033[K"), \r to go to start of line, other ANSI escape code to clear the line
 
+const defaultPort uint16 = 8080
+
 func main() {
-	conn, err := net.Dial("tcp", "localhost:8080")
+	conn, err := net.Dial("tcp", fmt.Sprintf("localhost:%d", defaultPort))
 	if err != nil {
 		log.Fatalf("Error connecting to server: %v\n", err)
 	}
-	defer disconnect(conn)
+	defer handleDisconnect(conn)
 	defer conn.Close()
 
 	scanner := bufio.NewScanner(os.Stdin)
-
-	fmt.Print("Private key: ")
-	scanner.Scan()
-	key := []byte(scanner.Text())
-	if err := scanner.Err(); err != nil {
-		log.Printf("Error reading from input: %v\n", err)
-		return
-	}
-	length := uint16(len(key))
-	var buf bytes.Buffer
-	err = binary.Write(&buf, binary.BigEndian, length)
+	err = authenticateWithServer(conn, *scanner)
 	if err != nil {
-		log.Printf("Error writing length to buffer: %v\n", err)
-		return
-	}
-	buf.Write(key)
-	_, err = conn.Write(buf.Bytes())
-	if err != nil {
-		log.Printf("Error sending authentication message to server: %v\n", err)
+		log.Printf("Error authenticating with server: %v\n", err)
 		return
 	}
 
-	conn.SetReadDeadline(time.Now().Add(5 * time.Second))
-	confirmation, err := bufio.NewReader(conn).ReadString('\n')
-	if err != nil {
-		log.Printf("Error receiving confirmation message from server: %v\n", err)
-		return
-	}
-	if strings.TrimSpace(confirmation) == "Invalid key." {
-		log.Printf("Invalid key. Failed to connect to server.")
-		return
-	}
-
-	fmt.Println("Connected to server on port 8080...")
+	fmt.Printf("Connected to server on port %d...\n", defaultPort)
 	fmt.Print(">> ")
-	// fmt.Print("\r\033[K")
 
 	for scanner.Scan() {
 		message := []byte(scanner.Text())
@@ -73,7 +47,11 @@ func main() {
 			return
 		}
 
-		buf.Write(message)
+		_, err = buf.Write(message)
+		if err != nil {
+			log.Printf("Error writing message to buffer: %v\n", err)
+			return
+		}
 
 		_, err = conn.Write(buf.Bytes())
 		if err != nil {
@@ -84,11 +62,17 @@ func main() {
 
 		lengthBuff := make([]byte, 2)
 
-		conn.SetReadDeadline(time.Now().Add(5 * time.Second))
+		err = conn.SetReadDeadline(time.Now().Add(5 * time.Second))
+		if err != nil {
+			fmt.Printf("Error setting read deadline: %v\n", err)
+			return
+		}
 		_, err = conn.Read(lengthBuff)
 		if err != nil {
 			if err != io.EOF {
 				log.Printf("Error reading in length of message from server: %v\n", err)
+			} else {
+				log.Println("Server closed.")
 			}
 			return
 		}
@@ -97,7 +81,11 @@ func main() {
 		responseLength := uint16(lengthBuff[0]) << 8 + uint16(lengthBuff[1])
 		responseBuff := make([]byte, responseLength)
 
-		conn.SetReadDeadline(time.Now().Add(5 * time.Second))
+		err = conn.SetReadDeadline(time.Now().Add(5 * time.Second))
+		if err != nil {
+			fmt.Printf("Error setting read deadline: %v\n", err)
+			return
+		}
 		_, err = conn.Read(responseBuff)
 		if err != nil {
 			log.Printf("Error receiving response from server: %v\n", err)
@@ -114,6 +102,39 @@ func main() {
 	}
 }
 
-func disconnect(conn net.Conn) {
+func authenticateWithServer(conn net.Conn, scanner bufio.Scanner) error {
+	fmt.Print("Private key: ")
+	if !scanner.Scan() {
+		if err := scanner.Err(); err != nil {
+			return fmt.Errorf("error reading key from input: %v", err)
+		}
+		return fmt.Errorf("no input received")
+	}
+	key := []byte(scanner.Text())
+	length := uint16(len(key))
+	var buf bytes.Buffer
+	err := binary.Write(&buf, binary.BigEndian, length)
+	if err != nil {
+		return fmt.Errorf("problem writing length to buffer: %v", err)
+	}
+	buf.Write(key)
+	_, err = conn.Write(buf.Bytes())
+	if err != nil {
+		return fmt.Errorf("problem sending authentication message to server: %v", err)
+	}
+
+	conn.SetReadDeadline(time.Now().Add(5 * time.Second))
+	confirmation, err := bufio.NewReader(conn).ReadString('\n')
+	if err != nil {
+		return fmt.Errorf("problem receiving confirmation message from server: %v", err)
+	}
+	if strings.TrimSpace(confirmation) == "Invalid key." {
+		return fmt.Errorf("invalid key: '%s'", string(key))
+	}
+
+	return nil
+}
+
+func handleDisconnect(conn net.Conn) {
 	log.Printf("Disconnected from %s\n", conn.RemoteAddr().String())
 }
