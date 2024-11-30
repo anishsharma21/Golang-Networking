@@ -10,10 +10,9 @@ import (
 	"sync"
 )
 
+// TODO testing
 // TODO broadcast functionality
 // TODO improve concurrency
-// TODO error handling in all places where relevant
-// TODO testing
 
 const defaultPort uint16 = 8080
 var clients = make(map[net.Conn]string)
