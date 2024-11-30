@@ -39,8 +39,8 @@ func main() {
 }
 
 func handleClient(client net.Conn) {
-	defer client.Close()
 	defer disconnectClient(client)
+	defer client.Close()
 
 	log.Printf("Establishing connection to client %s...\n", client.RemoteAddr().String())
 
@@ -65,12 +65,12 @@ func handleClient(client net.Conn) {
 
 	if string(messageBuffer) != privateKey {
 		log.Printf("Failed to establish connection with %s: invalid connection key: '%s'\n", client.RemoteAddr().String(), string(messageBuffer))
-		client.Write([]byte("Invalid key. Failed to authenticate with server."))
+		client.Write([]byte("Invalid key.\n"))
 		return
 	}
 
 	log.Printf("Connected to %s.", client.RemoteAddr().String())
-	_, err = client.Write([]byte("Connected to server."))
+	_, err = client.Write([]byte("AUTHENTICATED\n"))
 	if err != nil {
 		log.Printf("Failed to send confirmation message to %s\n", client.RemoteAddr().String())
 		return
@@ -98,7 +98,7 @@ func handleClient(client net.Conn) {
 			break
 		}
 
-		fmt.Printf("%s: %s, %d\n", client.RemoteAddr().String(), string(packet), messageLength)
+		log.Printf("%s: %s, %d\n", client.RemoteAddr().String(), string(packet), messageLength)
 
 		responseMessage := []byte(fmt.Sprintf("%v\n", packet))
 		responseMessageLength := uint16(len(responseMessage))
