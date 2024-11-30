@@ -14,6 +14,7 @@ import (
 )
 
 // TODO clear current line when other client messages broadcasted with this: fmt.Print("\r\033[K"), \r to go to start of line, other ANSI escape code to clear the line
+// TODO goroutine listening for messages from server (for broadcast functionality)
 
 const defaultPort uint16 = 8080
 
@@ -31,7 +32,6 @@ func main() {
 		log.Printf("Error authenticating with server: %v\n", err)
 		return
 	}
-
 	fmt.Printf("Connected to server on port %d...\n", defaultPort)
 	fmt.Print(">> ")
 

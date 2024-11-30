@@ -10,7 +10,6 @@ import (
 	"sync"
 )
 
-// TODO testing
 // TODO broadcast functionality
 // TODO improve concurrency
 
@@ -20,12 +19,29 @@ var mu sync.Mutex
 const privateKey string = "tcpinit8989"
 
 func main() {
-	listener, err := net.Listen("tcp", fmt.Sprintf(":%d", defaultPort))
+	var serverReadyWg sync.WaitGroup
+	var serverDownWg sync.WaitGroup
+
+	serverReadyWg.Add(1)
+	go startServer(defaultPort, &serverReadyWg, &serverDownWg)
+	serverReadyWg.Wait()
+
+	log.Printf("TCP server started on port %d...\n", defaultPort)
+
+	serverDownWg.Add(1)
+	serverDownWg.Wait()
+
+	log.Printf("TCP server shutting down.")
+}
+
+func startServer(port uint16, serverReadyWg *sync.WaitGroup, serverDownWg *sync.WaitGroup) {
+	defer serverDownWg.Done()
+	listener, err := net.Listen("tcp", fmt.Sprintf(":%d", port))
 	if err != nil {
 		log.Fatalln("Error starting server:", err)
 	}
 
-	log.Printf("TCP server started on port %d...\n", defaultPort)
+	serverReadyWg.Done()
 
 	for {
 		conn, err := listener.Accept()
@@ -65,13 +81,13 @@ func handleClient(client net.Conn) {
 		messageLength := uint16(lengthBuff[0]) << 8 + uint16(lengthBuff[1])
 		packet := make([]byte, messageLength)
 
-		_, err = client.Read(packet)
-		if err != nil {
+		if _, err = client.Read(packet); err != nil {
 			log.Printf("Error receiving message from %s: %v\n", client.RemoteAddr().String(), err)
 			return
 		}
 
 		log.Printf("%s: %s, %d\n", client.RemoteAddr().String(), string(packet), messageLength)
+		broadcastMessage(packet, client)
 
 		responseMessage := []byte(fmt.Sprintf("%v\n", packet))
 		responseMessageLength := uint16(len(responseMessage))
@@ -91,6 +107,19 @@ func handleClient(client net.Conn) {
 		if err != nil {
 			log.Printf("Error sending message to client %s: %v\n", client.RemoteAddr().String(), err)
 			return
+		}
+	}
+}
+
+func broadcastMessage(message []byte, client net.Conn) {
+	mu.Lock()
+	defer mu.Unlock()
+	for conn, name := range clients {
+		if client == conn {
+			continue
+		}
+		if _, err := client.Write(message); err != nil {
+			log.Printf("Error sending message to client %s: %v\n", name, err)
 		}
 	}
 }
