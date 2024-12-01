@@ -11,9 +11,6 @@ import (
 	"sync"
 )
 
-// TODO improve concurrency
-// TODO tidy up code
-
 var globalId int = 0
 const NEWLINE_LENGTH = 1
 const DEFAULT_PORT uint16 = 8080

@@ -15,8 +15,6 @@ import (
 )
 
 // TODO channels for checking that messages with specific ID's have been responded too
-// TODO look for concurrency and memory improvements
-// TODO tidy up code
 
 const PROTOCOL_PARAMETERS_NUM int = 2
 const DEFAULT_PORT uint16 = 8080
@@ -25,7 +23,7 @@ var printMu sync.Mutex
 func main() {
 	conn, err := net.Dial("tcp", fmt.Sprintf("localhost:%d", DEFAULT_PORT))
 	if err != nil {
-		log.Fatalf("Error connecting to server: %v\n", err)
+		log.Fatalf("Error connecting to server on port %d: %v\n", DEFAULT_PORT, err)
 	}
 	defer handleDisconnect(conn)
 	defer conn.Close()
@@ -105,8 +103,6 @@ func listenForServerMessages(conn net.Conn, serverChannel chan<- string) {
 			log.Printf("Error receiving response from server: %v\n", err)
 			return
 		}
-
-		// split response by newlines, first part is the client id, second part is the message
 
 		serverChannel <- strings.TrimRight(string(responseBuff), "\r\n")
 	}
