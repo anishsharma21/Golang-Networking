@@ -35,6 +35,7 @@ func main() {
 		log.Printf("Error authenticating with server: %v\n", err)
 		return
 	}
+
 	fmt.Printf("Connected to server on port %d...\n", defaultPort)
 	fmt.Print(">> ")
 
@@ -66,6 +67,7 @@ func main() {
 			log.Printf("Error sending message to server: %v\n", err)
 			return
 		}
+		log.Println("sent message from client")
 	}
 
 	if err := scanner.Err(); err != nil {
@@ -76,31 +78,36 @@ func main() {
 
 func listenForServerMessages(conn net.Conn, serverChannel chan<- string) {
 	lengthBuff := make([]byte, 2)
-	_, err := conn.Read(lengthBuff)
-	if err != nil {
-		if err != io.EOF {
-			log.Printf("Error reading in length of message from server: %v\n", err)
-		} else {
-			log.Println("Server closed.")
+
+	for {
+		_, err := conn.Read(lengthBuff)
+		log.Println("received message from server")
+		if err != nil {
+			if err != io.EOF {
+				log.Printf("Error reading in length of message from server: %v\n", err)
+			} else {
+				log.Println("Server closed.")
+			}
+			return
 		}
-		return
+
+		responseLength := uint16(lengthBuff[0]) << 8 + uint16(lengthBuff[1])
+		responseBuff := make([]byte, responseLength)
+
+		_, err = conn.Read(responseBuff)
+		if err != nil {
+			log.Printf("Error receiving response from server: %v\n", err)
+			return
+		}
+
+		serverChannel <- fmt.Sprintf("%v", strings.TrimRight(string(responseBuff), "\r\n"))
 	}
-
-	responseLength := uint16(lengthBuff[0]) << 8 + uint16(lengthBuff[1])
-	responseBuff := make([]byte, responseLength)
-
-	_, err = conn.Read(responseBuff)
-	if err != nil {
-		log.Printf("Error receiving response from server: %v\n", err)
-		return
-	}
-
-	serverChannel <- fmt.Sprintf("Server: %v\n", strings.TrimRight(string(responseBuff), "\r\n"))
 }
 
 func printMessages(serverChannel <-chan string) {
 	for {
 		serverMessage := <- serverChannel
+		log.Println("received message in channel to print")
 		printMu.Lock()
 		fmt.Print("\r\033[K")
 		fmt.Printf("Client #?: %s\n", serverMessage)
@@ -135,6 +142,7 @@ func authenticateWithServer(conn net.Conn, scanner bufio.Scanner) error {
 	if err != nil {
 		return fmt.Errorf("problem receiving confirmation message from server: %v", err)
 	}
+	conn.SetReadDeadline(time.Time{})
 	if strings.TrimSpace(confirmation) == "Invalid key." {
 		return fmt.Errorf("invalid key: '%s'", string(key))
 	}
