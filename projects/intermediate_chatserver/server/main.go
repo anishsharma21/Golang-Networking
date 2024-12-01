@@ -10,7 +10,6 @@ import (
 	"sync"
 )
 
-// TODO broadcast functionality
 // TODO improve concurrency
 // TODO send client information over the protocol too, over 2 lines
 
