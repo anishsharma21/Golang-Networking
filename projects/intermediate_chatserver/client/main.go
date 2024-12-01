@@ -15,8 +15,9 @@ import (
 )
 
 // TODO channels for checking that messages with specific ID's have been responded too
-// TODO custom protocol for receiving messages where there are 2 lines, first for message, second for client remoate address string
-// TODO use print mutex to also replace '>>' with 'You: ' once message sent
+// TODO add more to custom protocol for receiving messages where there are 2 lines, first for message, second for client remote address string
+// TODO look for concurrency and memory improvements
+// TODO tidy up code
 
 const defaultPort uint16 = 8080
 var printMu sync.Mutex

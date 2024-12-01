@@ -7,14 +7,18 @@ import (
 	"io"
 	"log"
 	"net"
+	"strconv"
 	"sync"
 )
 
-// TODO improve concurrency
 // TODO send client information over the protocol too, over 2 lines
+// TODO improve concurrency
+// TODO tidy up code
 
-const defaultPort uint16 = 8080
-var clients = make(map[net.Conn]string)
+var globalId int = 0
+const NEWLINE_LENGTH = 1
+const DEFAULT_PORT uint16 = 8080
+var clients = make(map[net.Conn]int)
 var mu sync.Mutex
 const privateKey string = "tcpinit8989"
 
@@ -23,10 +27,10 @@ func main() {
 	var serverDownWg sync.WaitGroup
 
 	serverReadyWg.Add(1)
-	go startServer(defaultPort, &serverReadyWg, &serverDownWg)
+	go startServer(DEFAULT_PORT, &serverReadyWg, &serverDownWg)
 	serverReadyWg.Wait()
 
-	log.Printf("TCP server started on port %d...\n", defaultPort)
+	log.Printf("TCP server started on port %d...\n", DEFAULT_PORT)
 
 	serverDownWg.Add(1)
 	serverDownWg.Wait()
@@ -40,6 +44,7 @@ func startServer(port uint16, serverReadyWg *sync.WaitGroup, serverDownWg *sync.
 	if err != nil {
 		log.Fatalln("Error starting server:", err)
 	}
+	defer listener.Close()
 
 	serverReadyWg.Done()
 
@@ -66,7 +71,7 @@ func handleClient(client net.Conn) {
 	log.Printf("Connected to %s", client.RemoteAddr().String())
 
 	mu.Lock()
-	clients[client] = client.RemoteAddr().String()
+	clients[client] = generateId()
 	mu.Unlock()
 
 	for {
@@ -88,12 +93,31 @@ func handleClient(client net.Conn) {
 
 		log.Printf("%s: %s, %d\n", client.RemoteAddr().String(), string(packet), messageLength)
 
-		responseMessageLength := uint16(len(packet))
+		mu.Lock()
+		clientId, ok := clients[client]
+		if !ok {
+			fmt.Printf("Error: client not saved globally and not found\n")
+			return
+		}
+		mu.Unlock()
+
+		clientIdStr := strconv.Itoa(clientId)
+		responseMessageLength := uint16(len(packet) + NEWLINE_LENGTH + len(clientIdStr))
 
 		var buf bytes.Buffer
 		err = binary.Write(&buf, binary.BigEndian, responseMessageLength)
 		if err != nil {
 			log.Printf("Error writing length to buffer: %v\n", err)
+			return
+		}
+		_, err = buf.Write([]byte(clientIdStr))
+		if err != nil {
+			log.Printf("Error writing client id '%s' to buffer: %v\n", clientIdStr, err)
+			return
+		}
+		_, err = buf.Write([]byte("\n"))
+		if err != nil {
+			log.Printf("Error writing client id '%s' to buffer: %v\n", clientIdStr, err)
 			return
 		}
 		_, err = buf.Write(packet)
@@ -108,12 +132,12 @@ func handleClient(client net.Conn) {
 func broadcastMessage(message []byte, client net.Conn) {
 	mu.Lock()
 	defer mu.Unlock()
-	for conn, name := range clients {
+	for conn, id := range clients {
 		if client == conn {
 			continue
 		}
 		if _, err := conn.Write(message); err != nil {
-			log.Printf("Error sending message to client %s: %v\n", name, err)
+			log.Printf("Error sending message to client %d: %v\n", id, err)
 		}
 	}
 }
@@ -153,4 +177,9 @@ func disconnectClient(client net.Conn) {
 	mu.Unlock()
 
 	log.Printf("Disconnected from %s\n", client.RemoteAddr().String())
+}
+
+func generateId() int {
+	globalId++
+	return globalId
 }
