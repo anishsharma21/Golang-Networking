@@ -19,11 +19,12 @@ import (
 // TODO look for concurrency and memory improvements
 // TODO tidy up code
 
-const defaultPort uint16 = 8080
+const PROTOCOL_PARAMETERS_NUM int = 2
+const DEFAULT_PORT uint16 = 8080
 var printMu sync.Mutex
 
 func main() {
-	conn, err := net.Dial("tcp", fmt.Sprintf("localhost:%d", defaultPort))
+	conn, err := net.Dial("tcp", fmt.Sprintf("localhost:%d", DEFAULT_PORT))
 	if err != nil {
 		log.Fatalf("Error connecting to server: %v\n", err)
 	}
@@ -37,7 +38,7 @@ func main() {
 		return
 	}
 
-	fmt.Printf("Connected to server on port %d...\n", defaultPort)
+	fmt.Printf("Connected to server on port %d...\n", DEFAULT_PORT)
 	fmt.Print(">> ")
 
 	responseChan := make(chan string)
@@ -100,6 +101,8 @@ func listenForServerMessages(conn net.Conn, serverChannel chan<- string) {
 			return
 		}
 
+		// split response by newlines, first part is the client id, second part is the message
+
 		serverChannel <- strings.TrimRight(string(responseBuff), "\r\n")
 	}
 }
@@ -107,12 +110,26 @@ func listenForServerMessages(conn net.Conn, serverChannel chan<- string) {
 func printMessages(serverChannel <-chan string) {
 	for {
 		serverMessage := <- serverChannel
+		serverMessageParts, err := parseServerMessage(serverMessage)
+		if err != nil {
+			log.Printf("Error parsing server message: %v\n", err)
+			os.Exit(1)
+			// TODO should have a wait group for client to close it down gracefully
+		}
 		printMu.Lock()
 		fmt.Print("\r\033[K")
-		fmt.Printf("Client #?: %s\n", serverMessage)
+		fmt.Printf("Client %s: %s\n", serverMessageParts[0], serverMessageParts[1])
 		fmt.Print(">> ")
 		printMu.Unlock()
 	}
+}
+
+func parseServerMessage(serverMessage string) ([]string, error) {
+	serverMessageParts := strings.Split(serverMessage, "\n")
+	if len(serverMessageParts) != PROTOCOL_PARAMETERS_NUM {
+		return []string{}, fmt.Errorf("server message has wrong number of protocol parameters (should be %d): %s", PROTOCOL_PARAMETERS_NUM, serverMessage)
+	}
+	return serverMessageParts, nil
 }
 
 func authenticateWithServer(conn net.Conn, scanner bufio.Scanner) error {

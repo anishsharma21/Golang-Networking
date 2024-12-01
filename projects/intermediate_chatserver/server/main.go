@@ -11,7 +11,6 @@ import (
 	"sync"
 )
 
-// TODO send client information over the protocol too, over 2 lines
 // TODO improve concurrency
 // TODO tidy up code
 
