@@ -16,7 +16,7 @@ import (
 
 // TODO channels for checking that messages with specific ID's have been responded too
 // TODO custom protocol for receiving messages where there are 2 lines, first for message, second for client remoate address string
-// FIXME bug where second message to server doesn't receive a response
+// TODO use print mutex to also replace '>>' with 'You: ' once message sent
 
 const defaultPort uint16 = 8080
 var printMu sync.Mutex
@@ -67,7 +67,7 @@ func main() {
 			log.Printf("Error sending message to server: %v\n", err)
 			return
 		}
-		log.Println("sent message from client")
+		fmt.Print(">> ")
 	}
 
 	if err := scanner.Err(); err != nil {
@@ -81,7 +81,6 @@ func listenForServerMessages(conn net.Conn, serverChannel chan<- string) {
 
 	for {
 		_, err := conn.Read(lengthBuff)
-		log.Println("received message from server")
 		if err != nil {
 			if err != io.EOF {
 				log.Printf("Error reading in length of message from server: %v\n", err)
@@ -100,14 +99,13 @@ func listenForServerMessages(conn net.Conn, serverChannel chan<- string) {
 			return
 		}
 
-		serverChannel <- fmt.Sprintf("%v", strings.TrimRight(string(responseBuff), "\r\n"))
+		serverChannel <- strings.TrimRight(string(responseBuff), "\r\n")
 	}
 }
 
 func printMessages(serverChannel <-chan string) {
 	for {
 		serverMessage := <- serverChannel
-		log.Println("received message in channel to print")
 		printMu.Lock()
 		fmt.Print("\r\033[K")
 		fmt.Printf("Client #?: %s\n", serverMessage)

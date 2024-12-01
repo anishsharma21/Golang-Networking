@@ -12,6 +12,7 @@ import (
 
 // TODO broadcast functionality
 // TODO improve concurrency
+// TODO send client information over the protocol too, over 2 lines
 
 const defaultPort uint16 = 8080
 var clients = make(map[net.Conn]string)
@@ -87,10 +88,8 @@ func handleClient(client net.Conn) {
 		}
 
 		log.Printf("%s: %s, %d\n", client.RemoteAddr().String(), string(packet), messageLength)
-		broadcastMessage(packet, client)
 
-		responseMessage := []byte(fmt.Sprintf("%v\n", packet))
-		responseMessageLength := uint16(len(responseMessage))
+		responseMessageLength := uint16(len(packet))
 
 		var buf bytes.Buffer
 		err = binary.Write(&buf, binary.BigEndian, responseMessageLength)
@@ -98,16 +97,12 @@ func handleClient(client net.Conn) {
 			log.Printf("Error writing length to buffer: %v\n", err)
 			return
 		}
-		_, err = buf.Write(responseMessage)
+		_, err = buf.Write(packet)
 		if err != nil {
 			log.Printf("Error writing message to buffer: %v\n", err)
 			return
 		}
-		_, err = client.Write(buf.Bytes())
-		if err != nil {
-			log.Printf("Error sending message to client %s: %v\n", client.RemoteAddr().String(), err)
-			return
-		}
+		broadcastMessage(buf.Bytes(), client)
 	}
 }
 
@@ -118,7 +113,7 @@ func broadcastMessage(message []byte, client net.Conn) {
 		if client == conn {
 			continue
 		}
-		if _, err := client.Write(message); err != nil {
+		if _, err := conn.Write(message); err != nil {
 			log.Printf("Error sending message to client %s: %v\n", name, err)
 		}
 	}
