@@ -15,7 +15,6 @@ import (
 )
 
 // TODO channels for checking that messages with specific ID's have been responded too
-// TODO add more to custom protocol for receiving messages where there are 2 lines, first for message, second for client remote address string
 // TODO look for concurrency and memory improvements
 // TODO tidy up code
 
@@ -50,6 +49,12 @@ func main() {
 	for scanner.Scan() {
 		message := []byte(scanner.Text())
 		length := uint16(len(message))
+
+		printMu.Lock()
+		// clear current line in display
+		fmt.Print("\033[A\r\033[K")
+		fmt.Println("You:", string(message))
+		printMu.Unlock()
 
 		var buf bytes.Buffer
 

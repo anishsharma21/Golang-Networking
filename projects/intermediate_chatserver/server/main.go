@@ -17,9 +17,9 @@ import (
 var globalId int = 0
 const NEWLINE_LENGTH = 1
 const DEFAULT_PORT uint16 = 8080
+const PRIVATE_KEY string = "tcpinit8989"
 var clients = make(map[net.Conn]int)
 var mu sync.Mutex
-const privateKey string = "tcpinit8989"
 
 func main() {
 	var serverReadyWg sync.WaitGroup
@@ -157,7 +157,7 @@ func establishConnection(client net.Conn, lengthBuff []byte) error {
 		return fmt.Errorf("issue receiving message from %s: %v", client.RemoteAddr().String(), err)
 	}
 
-	if string(messageBuffer) != privateKey {
+	if string(messageBuffer) != PRIVATE_KEY {
 		client.Write([]byte("Invalid key.\n"))
 		return fmt.Errorf("invalid connection key: '%s'", string(messageBuffer))
 	}
