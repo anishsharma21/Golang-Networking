@@ -30,6 +30,9 @@ func main() {
 	close(serverReady)
 	log.Printf("UDP Server started on port %d...\n", DEFAULT_PORT)
 
+	// multiclient test if desired
+	go startClient()
+
 	sigChan := make(chan os.Signal, 1)
 	signal.Notify(sigChan, syscall.SIGINT, syscall.SIGTERM)
 	<-sigChan
