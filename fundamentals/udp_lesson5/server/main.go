@@ -52,13 +52,19 @@ func startServer(ctx context.Context, port uint16, ready chan<- bool, serverWg *
 	}
 	defer conn.Close()
 	ready <- true
-	buffer := make([]byte, DATAGRAM_BUFFER_SIZE)
+
+	bufferPool := sync.Pool{
+		New: func() interface{} {
+			return make([]byte, DATAGRAM_BUFFER_SIZE)
+		},
+	}
 	for {
 		select {
 		case <-ctx.Done():
 			log.Println("Server is shutting down...")
 			return
 		default:
+			buffer := bufferPool.Get().([]byte)
 			conn.SetReadDeadline(time.Now().Add(1 * time.Second))
 			n, addr, err := conn.ReadFrom(buffer)
 			if err != nil {
@@ -68,12 +74,13 @@ func startServer(ctx context.Context, port uint16, ready chan<- bool, serverWg *
 				log.Printf("Error reading from %s: %v\n", addr, err)
 				continue
 			}
-			go handlePacket(conn, addr, buffer[:n])
+			go handlePacket(conn, addr, buffer[:n], &bufferPool)
 		}
 	}
 }
 
-func handlePacket(conn net.PacketConn, addr net.Addr, data []byte) {
+func handlePacket(conn net.PacketConn, addr net.Addr, data []byte, bufferPool *sync.Pool) {
+	defer bufferPool.Put(data[:cap(data)])
 	log.Printf("%s: %q\n", addr, string(data))
 	message := "Echo: " + string(data)
 	_, err := conn.WriteTo([]byte(message), addr)
