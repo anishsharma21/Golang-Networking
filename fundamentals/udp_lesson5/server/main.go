@@ -1,10 +1,15 @@
 package main
 
 import (
+	"context"
 	"fmt"
 	"log"
 	"net"
+	"os"
+	"os/signal"
 	"sync"
+	"syscall"
+	"time"
 )
 
 const DEFAULT_PORT uint16 = 8080
@@ -14,18 +19,29 @@ func main() {
 	serverReady := make(chan bool)
 	var serverWg sync.WaitGroup
 	serverWg.Add(1)
-	go startServer(DEFAULT_PORT, serverReady, &serverWg)
+
+	ctx, cancel := context.WithCancel(context.Background())
+	go startServer(ctx, DEFAULT_PORT, serverReady, &serverWg)
+
 	if !<-serverReady {
 		log.Printf("Server not started :(")
 		return
 	}
 	close(serverReady)
-	fmt.Printf("UDP Server started on port %d...\n", DEFAULT_PORT)
+	log.Printf("UDP Server started on port %d...\n", DEFAULT_PORT)
+
+	sigChan := make(chan os.Signal, 1)
+	signal.Notify(sigChan, syscall.SIGINT, syscall.SIGTERM)
+	<-sigChan
+	fmt.Println()
+	log.Println("Server shutdown signal received...")
+	cancel()
+
 	serverWg.Wait()
-	fmt.Println("Server shutting down.")
+	log.Println("Server shut down gracefully.")
 }
 
-func startServer(port uint16, ready chan<- bool, serverWg *sync.WaitGroup) {
+func startServer(ctx context.Context, port uint16, ready chan<- bool, serverWg *sync.WaitGroup) {
 	defer serverWg.Done()
 	conn, err := net.ListenPacket("udp", fmt.Sprintf(":%d", port))
 	if err != nil {
@@ -38,17 +54,30 @@ func startServer(port uint16, ready chan<- bool, serverWg *sync.WaitGroup) {
 	ready <- true
 	buffer := make([]byte, DATAGRAM_BUFFER_SIZE)
 	for {
-		n, addr, err := conn.ReadFrom(buffer)
-		if err != nil {
-			log.Printf("Error reading from %s: %v\n", addr, err)
+		select {
+		case <-ctx.Done():
+			log.Println("Server is shutting down...")
 			return
+		default:
+			conn.SetReadDeadline(time.Now().Add(1 * time.Second))
+			n, addr, err := conn.ReadFrom(buffer)
+			if err != nil {
+				if netErr, ok := err.(net.Error); ok && netErr.Timeout() {
+					continue
+				}
+				log.Printf("Error reading from %s: %v\n", addr, err)
+				continue
+			}
+			go handlePacket(conn, addr, buffer[:n])
 		}
-		log.Printf("%s: %q\n", addr, string(buffer[:n]))
-		message := "Hello, " + string(buffer[:n])
-		_, err = conn.WriteTo([]byte(message), addr)
-		if err != nil {
-			log.Printf("Error sending message to %s: %v\n", addr, err)
-			return
-		}
+	}
+}
+
+func handlePacket(conn net.PacketConn, addr net.Addr, data []byte) {
+	log.Printf("%s: %q\n", addr, string(data))
+	message := "Echo: " + string(data)
+	_, err := conn.WriteTo([]byte(message), addr)
+	if err != nil {
+		log.Printf("Error sending message to %s: %v\n", addr, err)
 	}
 }
