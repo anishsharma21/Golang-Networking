@@ -6,6 +6,7 @@ import (
 	"io"
 	"net"
 	"os"
+	"strings"
 )
 
 const DEFAULT_PORT int = 8080
@@ -36,7 +37,7 @@ func main() {
 			fmt.Printf("Error receiving response from server %s: %v\n", conn.RemoteAddr().String(), err)
 			return
 		}
-		fmt.Printf("Server: %s", buffer[:n])
+		fmt.Printf("Server: %s\n", strings.TrimSpace(string(buffer[:n])))
 	}
 
 	if err := scanner.Err(); err != nil {
