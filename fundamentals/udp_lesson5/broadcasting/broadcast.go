@@ -45,7 +45,7 @@ func main() {
 
     broadCastWg.Add(1)
     go responseListenerSetup(DEFAULT_PORT, &broadCastWg, ctx)
-    
+
     broadCastWg.Wait()
     fmt.Printf("Broadcast shut down gracefully.\n")
 }
