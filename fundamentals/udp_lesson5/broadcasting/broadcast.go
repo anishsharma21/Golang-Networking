@@ -43,6 +43,9 @@ func main() {
         cancel()
     }()
 
+    broadCastWg.Add(1)
+    go responseListenerSetup(DEFAULT_PORT, &broadCastWg, ctx)
+    
     broadCastWg.Wait()
     fmt.Printf("Broadcast shut down gracefully.\n")
 }
@@ -90,6 +93,38 @@ func setupBroadcast(broadcastAddress string, defaultPort uint16, broadcastReady 
                 }
                 fmt.Printf("Broadcast message sent.\n")
             }
+        }
+    }
+}
+
+func responseListenerSetup(port uint16, broadCastWg *sync.WaitGroup, ctx context.Context) {
+    defer broadCastWg.Done()
+
+    addr := net.UDPAddr{
+        Port: int(port),
+        IP: net.IPv4zero,
+    }
+
+    conn, err := net.ListenUDP("udp", &addr)
+    if err != nil {
+        fmt.Printf("Error setting up response listener: %v\n", err)
+        return
+    }
+    defer conn.Close()
+
+    buffer := make([]byte, 1024)
+    for {
+        select {
+        case <-ctx.Done():
+            fmt.Printf("Context cancelled, shutting down response listener...\n")
+            return
+        default:
+            n, remoteAddr, err := conn.ReadFromUDP(buffer)
+            if err != nil {
+                fmt.Printf("Error reading response from %s: %v\n", remoteAddr, err)
+                return
+            }
+            fmt.Printf("Received response from %s: %s\n", remoteAddr, string(buffer[:n]))
         }
     }
 }
