@@ -3,6 +3,8 @@ package main
 import (
 	"fmt"
 	"net"
+	"strconv"
+	"strings"
 	"time"
 )
 
@@ -40,5 +42,50 @@ func main() {
 		fmt.Printf("Recieved in conn2: %s\n", string(buffer[:n]))
 	}()
 
-	time.Sleep(1 * time.Second)
+	time.Sleep(100 * time.Millisecond)
+
+	getAddresses()
+
+	ip := net.ParseIP("127.0.0.1")
+	fmt.Println("Parsed IP:", ip)
+	if ip.To4() != nil {
+		fmt.Println("IPv4 address")
+	} else if ip.To16() != nil {
+		fmt.Println("IPv6 address")
+	} else {
+		fmt.Println("Invalid IP type")
+	}
+
+	IPDetails(ip)
+}
+
+func getAddresses() {
+	addrs, err := net.InterfaceAddrs()
+	if err != nil {
+		fmt.Printf("Error getting system interface addresses: %v\n", err)
+		return
+	}
+	for i, addr := range addrs {
+		fmt.Printf("Address %d: %v\n", i+1, addr)
+	}
+}
+
+func IPDetails(ip net.IP) {
+	if ip.To4() != nil {
+		fmt.Println("IPv4 address")
+	} else if ip.To16() != nil {
+		fmt.Println("IPv6 address")
+	} else {
+		fmt.Println("Invalid IP type")
+	}
+	ipSplit := strings.Split(ip.String(), ".")
+	for _, str := range ipSplit {
+		val, err := strconv.ParseInt(str, 10, 8)
+		if err != nil {
+			fmt.Printf("Error parsing %q: %v\n", str, err)
+			return
+		}
+		fmt.Printf("%08b", val)
+	}
+	println()
 }
