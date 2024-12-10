@@ -25,7 +25,7 @@ func jsonHandler(w http.ResponseWriter, r *http.Request) {
     w.Write(jsonData)
 }
 
-func main() {
+func first() {
     http.HandleFunc("/", helloHandler)
     http.HandleFunc("/greet", greetHandler)
     http.HandleFunc("/json", jsonHandler)
