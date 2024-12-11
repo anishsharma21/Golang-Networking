@@ -10,7 +10,7 @@ type Response struct {
 	Message string `json:"message"`
 }
 
-func main() {
+func second() {
 	http.HandleFunc("/", handler)
 	fmt.Println("Starting server on port 8080...")
 	http.ListenAndServe(":8080", nil)
@@ -27,6 +27,5 @@ func handler(w http.ResponseWriter, r *http.Request) {
 
 	response := Response{Message: "hello there!"}
 	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(response)
 	json.NewEncoder(w).Encode(response)
 }
