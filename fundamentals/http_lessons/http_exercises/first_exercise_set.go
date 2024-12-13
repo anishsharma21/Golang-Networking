@@ -14,6 +14,7 @@ func main() {
 	http.HandleFunc("/hello", helloHandler)
 	http.HandleFunc("/goodbye", goodbyeHandler)
 	http.HandleFunc("/form", formHandler)
+	http.HandleFunc("/greet", greetHandler)
 
 	fmt.Println("Starting HTTP server on port 8080...")
 	err := http.ListenAndServe(":8080", nil)
@@ -47,6 +48,22 @@ func formHandler(w http.ResponseWriter, r *http.Request) {
 		err := tmpl.Execute(w, nil)
 		if err != nil {
 			http.Error(w, err.Error(), http.StatusInternalServerError)
+		}
+	}
+}
+
+func greetHandler(w http.ResponseWriter, r *http.Request) {
+	if r.Method == http.MethodPost {
+		err := r.ParseForm()
+		if err != nil {
+			http.Error(w, "Unable to parse form", http.StatusBadRequest)
+			return
+		}
+		name := r.FormValue("name")
+		if name != "" {
+			fmt.Fprintf(w, "hello %s!\n", name)
+		} else {
+			fmt.Fprintf(w, "hello!\n")
 		}
 	}
 }
