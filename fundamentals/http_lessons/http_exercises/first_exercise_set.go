@@ -1,6 +1,7 @@
 package main
 
 import (
+	"encoding/json"
 	"fmt"
 	"html/template"
 	"log"
@@ -28,13 +29,24 @@ func helloWorldHandler(w http.ResponseWriter, r *http.Request) {
 	fmt.Fprintf(w, "hello, world!\n")
 }
 
+type HelloMessage struct {
+	Message string `json:"message"`
+}
+
 func helloHandler(w http.ResponseWriter, r *http.Request) {
-	queryParams := r.URL.Query()
-	name := queryParams.Get("name")
-	if name != "" {
-		fmt.Fprintf(w, "hello %s!\n", name)
-	} else {
-		fmt.Fprintf(w, "hello!\n")
+	jsonData, err := json.Marshal(HelloMessage{Message: "hello there"})
+	if err != nil {
+		log.Printf("Error encoding JSON: %v\n", err)
+		return
+	}
+
+	if r.Method == http.MethodGet {
+		w.Header().Set("Content-Type", "application/json")
+		_, err := w.Write(jsonData)
+		if err != nil {
+			fmt.Printf("Error sending json data: %v\n%v\n", err, jsonData)
+			return
+		}
 	}
 }
 
