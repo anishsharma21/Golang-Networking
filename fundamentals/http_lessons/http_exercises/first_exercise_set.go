@@ -10,12 +10,13 @@ import (
 
 var tmpl = template.Must(template.ParseFiles("form.html"))
 
-func main() {
+func first() {
 	http.HandleFunc("/", helloWorldHandler)
 	http.HandleFunc("/hello", helloHandler)
 	http.HandleFunc("/goodbye", goodbyeHandler)
 	http.HandleFunc("/form", formHandler)
 	http.HandleFunc("/greet", greetHandler)
+	http.HandleFunc("/users/{id}", idHandler)
 
 	fmt.Println("Starting HTTP server on port 8080...")
 	err := http.ListenAndServe(":8080", nil)
@@ -78,4 +79,11 @@ func greetHandler(w http.ResponseWriter, r *http.Request) {
 			fmt.Fprintf(w, "hello!\n")
 		}
 	}
+}
+
+func idHandler(w http.ResponseWriter, r *http.Request) {
+	fmt.Println(r.URL.Fragment)
+	fmt.Println(r.URL.Path)
+	fmt.Println(r.URL.Query())
+	fmt.Println(r.URL.EscapedPath())
 }
