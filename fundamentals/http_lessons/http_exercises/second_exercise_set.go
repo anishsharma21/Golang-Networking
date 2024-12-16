@@ -6,6 +6,7 @@ import (
 	"io"
 	"log"
 	"net/http"
+	"sync"
 	"time"
 )
 
@@ -39,14 +40,13 @@ func main() {
 
 	mux.HandleFunc("GET /redirect", redirectHandler)
 
+	go resetRateLimitCounts()
+	mux.HandleFunc("GET /ratelimit", handleRateLimit)
+
 	loggedMux := LoggingMiddleware(mux)
 
 	log.Println("Starting HTTP server on port 8080...")
-	err := http.ListenAndServe(":8080", loggedMux)
-	if err != nil {
-		log.Printf("Error starting HTTP server on port 8080: %v\n", err)
-		return
-	}
+	log.Fatal(http.ListenAndServe(":8080", loggedMux))
 }
 
 type DivideData struct {
@@ -115,4 +115,36 @@ func LoggingMiddleware(next http.Handler) http.Handler {
 
 func redirectHandler(w http.ResponseWriter, r *http.Request) {
 	http.Redirect(w, r, "http://localhost:8080/hello", http.StatusFound)
+}
+
+var (
+	hostRateLimitCounts = make(map[string]int)
+	rateLimitMutex sync.Mutex
+)
+const RATE_LIMIT = 5
+const RESET_INTERVAL = time.Minute
+
+func handleRateLimit(w http.ResponseWriter, r *http.Request) {
+	rateLimitMutex.Lock()
+	defer rateLimitMutex.Unlock()
+	hostRateLimitCounts[r.Host] += 1
+
+	if hostRateLimitCounts[r.Host] > RATE_LIMIT {
+		log.Printf("handleRateLimit: rate limit exceeded by %s: more than %d requests", r.Host, RATE_LIMIT)
+		http.Error(w, "rate limit exceeded", http.StatusTooManyRequests)
+		return
+	}
+
+	fmt.Fprintf(w, "Under the rate limit still :)\n")
+}
+
+func resetRateLimitCounts() {
+	for {
+		time.Sleep(RESET_INTERVAL)
+		rateLimitMutex.Lock()
+		for k := range hostRateLimitCounts {
+			hostRateLimitCounts[k] = 0
+		}
+		rateLimitMutex.Unlock()
+	}
 }
