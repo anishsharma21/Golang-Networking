@@ -37,6 +37,8 @@ func main() {
 
 	mux.HandleFunc("POST /divide", handleDivide)
 
+	mux.HandleFunc("GET /redirect", redirectHandler)
+
 	loggedMux := LoggingMiddleware(mux)
 
 	log.Println("Starting HTTP server on port 8080...")
@@ -109,4 +111,8 @@ func LoggingMiddleware(next http.Handler) http.Handler {
 		next.ServeHTTP(w, r)
 		log.Printf("%s %s %s", r.Method, r.RequestURI, time.Since(start))
 	})
+}
+
+func redirectHandler(w http.ResponseWriter, r *http.Request) {
+	http.Redirect(w, r, "http://localhost:8080/hello", http.StatusFound)
 }
