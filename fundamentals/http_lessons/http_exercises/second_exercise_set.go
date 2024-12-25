@@ -10,7 +10,7 @@ import (
 	"time"
 )
 
-func main() {
+func second() {
 	mux := http.NewServeMux()
 
 	mux.HandleFunc("GET /", func(w http.ResponseWriter, r *http.Request) {
