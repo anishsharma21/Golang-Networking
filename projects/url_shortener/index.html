@@ -17,14 +17,17 @@
       type="module"
     ></script>
   </head>
-  <body>
-    <div class="uk-container uk-flex uk-flex-center uk-flex-middle">
-      <div class="uk-container-xsmall uk-margin uk-margin-auto">
-        <div class="uk-card">
-          <div class="uk-card-header">
-            <h3 class="uk-card-title">Enter a URL</h3>
-          </div>
-        </div>
+  <body uk-height-viewport class="uk-flex uk-flex-center">
+    <div class="uk-card uk-width-1-3 uk-height-small uk-margin-auto-vertical">
+      <div class="uk-card-header">
+        <h1 class="uk-card-title uk-h1 uk-text-center">Enter a URL</h1>
+        <form class="uk-margin-top">
+          <input
+            class="uk-input"
+            type="url"
+            placeholder="https://example.com"
+          />
+        </form>
       </div>
     </div>
   </body>
