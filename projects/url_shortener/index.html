@@ -16,12 +16,13 @@
       src="https://unpkg.com/franken-ui@1.1.0/dist/js/icon.iife.js"
       type="module"
     ></script>
+    <script src="https://unpkg.com/htmx.org@2.0.4"></script>
   </head>
   <body uk-height-viewport class="uk-flex uk-flex-center">
     <div class="uk-card uk-width-1-3 uk-height-small uk-margin-auto-vertical">
       <div class="uk-card-header">
         <h1 class="uk-card-title uk-h1 uk-text-center">Enter a URL</h1>
-        <form class="uk-margin-top" method="POST" action="shorten-url">
+        <form class="uk-margin-top" hx-post="/shorten-url">
           <input
             class="uk-input"
             type="url"
