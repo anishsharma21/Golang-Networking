@@ -5,6 +5,7 @@ import (
 	"log"
 	"math/rand"
 	"net/http"
+	"sync"
 	"text/template"
 	"time"
 )
@@ -12,21 +13,41 @@ import (
 const port uint16 = 8080
 
 var tmpl = template.Must(template.ParseFiles("index.html"))
+var urlMap = make(map[string]string)
+var urlMapMu sync.Mutex
 
 func main() {
 	mux := http.NewServeMux()
 
 	mux.HandleFunc("GET /", baseHandler)
-	mux.HandleFunc("POST /url-shorten", urlFormSubmitHandler)
+	mux.HandleFunc("POST /shorten-url", urlFormSubmitHandler)
+	mux.HandleFunc("GET /r/", redirectHandler)
 
 	log.Printf("Server started on port %d...", port)
 	log.Fatal(http.ListenAndServe(fmt.Sprintf(":%d", port), mux))
 }
 
+func redirectHandler(w http.ResponseWriter, r *http.Request) {
+	if r.Method == http.MethodGet {
+		urlMapMu.Lock()
+		if url, ok := urlMap[fmt.Sprintf("http://localhost:%d%s", port, r.URL.Path)]; ok {
+			http.Redirect(w, r, url, http.StatusFound)
+		} else {
+			log.Printf("Error (redirectHandler): http://localhost:%d%s not found in map", port, r.URL.Path)
+			http.Error(w, "Original URL not found", http.StatusNotFound)
+		}
+		urlMapMu.Unlock()
+	}
+}
+
 func urlFormSubmitHandler(w http.ResponseWriter, r *http.Request) {
 	if r.Method == http.MethodPost {
 		url := r.FormValue("url")
-		fmt.Fprintf(w, "URL received: %s\n", url)
+		shortUrl := fmt.Sprintf("http://localhost:%d/r/%s", port, randomString(5)) 
+		urlMapMu.Lock()
+		urlMap[shortUrl] = url
+		urlMapMu.Unlock()
+		fmt.Fprintf(w, "Shortened URL: %s\n", shortUrl)
 	} else {
 		http.Error(w, "Invalid request method", http.StatusMethodNotAllowed)
 	}
