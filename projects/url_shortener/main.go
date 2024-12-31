@@ -56,11 +56,9 @@ func urlFormSubmitHandler(w http.ResponseWriter, r *http.Request) {
 			ShortenedUrl: shortUrl,
 		}
 		w.Header().Set("Content-Type", "text/html")
-		if err := tmpl.Execute(w, data); err != nil {
+		if err := tmpl.ExecuteTemplate(w, "url-response.html", data); err != nil {
 			http.Error(w, "error rendering template", http.StatusInternalServerError)
 		}
-
-		fmt.Fprintf(w, "Shortened URL: %s\n", shortUrl)
 	} else {
 		http.Error(w, "Invalid request method", http.StatusMethodNotAllowed)
 	}
@@ -69,7 +67,7 @@ func urlFormSubmitHandler(w http.ResponseWriter, r *http.Request) {
 func baseHandler(w http.ResponseWriter, r *http.Request) {
 	if r.Method == http.MethodGet {
 		w.Header().Set("Content-Type", "text/html")
-		err := tmpl.Execute(w, nil)
+		err := tmpl.ExecuteTemplate(w, "index.html", nil)
 		if err != nil {
 			http.Error(w, err.Error(), http.StatusInternalServerError)
 		}
