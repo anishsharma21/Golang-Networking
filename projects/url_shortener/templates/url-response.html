@@ -1,2 +1,16 @@
-<div class="text-lg font-semibold">Shortened URL</div>
-<div class="min-h-6 text-blue-500">{{ .ShortenedUrl }}</div>
+<div class="bg-white p-6 rounded-lg shadow-lg">
+  <div class="text-lg font-semibold text-center mb-4">Shortened URL</div>
+  <div class="flex items-center justify-center space-x-4">
+    <a
+      href="{{ .ShortenedUrl }}"
+      class="text-blue-500 underline text-lg break-all"
+      >{{ .ShortenedUrl }}</a
+    >
+    <button
+      class="bg-blue-500 text-white p-2 rounded hover:bg-blue-600"
+      onclick="navigator.clipboard.writeText('{{ .ShortenedUrl }}')"
+    >
+      Copy
+    </button>
+  </div>
+</div>

@@ -11,27 +11,30 @@
     />
     <link href="../static/css/output.css" rel="stylesheet" />
   </head>
-  <body class="h-screen flex justify-center items-center">
-    <div class="card w-1/3 mx-auto">
-      <div class="card-header">
-        <h1 class="card-title text-2xl text-center">Enter a URL</h1>
-      </div>
-      <div class="card-body">
-        <form
-          hx-post="/shorten-url"
-          hx-target="#url-response"
-          hx-swap="innerHTML"
+  <body class="h-screen flex justify-center items-center bg-gray-100">
+    <div class="w-full max-w-md mx-auto bg-white p-8 rounded-lg shadow-lg">
+      <h1 class="text-3xl font-bold text-center mb-6">URL Shortener</h1>
+      <form
+        hx-post="/shorten-url"
+        hx-target="#url-response"
+        hx-swap="innerHTML"
+        class="space-y-4"
+      >
+        <input
+          class="w-full border border-gray-300 rounded p-3 text-lg"
+          type="url"
+          name="url"
+          placeholder="Enter your URL here"
+          required
+        />
+        <button
+          type="submit"
+          class="w-full bg-blue-500 text-white rounded p-3 text-lg hover:bg-blue-600"
         >
-          <input
-            class="input w-full border border-gray-300 rounded p-2"
-            type="url"
-            name="url"
-            placeholder="https://example.com"
-            required
-          />
-        </form>
-        <div id="url-response"></div>
-      </div>
+          Shorten URL
+        </button>
+      </form>
+      <div id="url-response" class="mt-6"></div>
     </div>
   </body>
 </html>
