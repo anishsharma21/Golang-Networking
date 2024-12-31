@@ -12,7 +12,7 @@ import (
 
 const port uint16 = 8080
 
-var tmpl = template.Must(template.ParseFiles("index.html"))
+var tmpl = template.Must(template.ParseGlob("templates/*.html"))
 var urlMap = make(map[string]string)
 var urlMapMu sync.Mutex
 
@@ -40,6 +40,10 @@ func redirectHandler(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
+type ShortUrlResponseData struct {
+	ShortenedUrl string
+}
+
 func urlFormSubmitHandler(w http.ResponseWriter, r *http.Request) {
 	if r.Method == http.MethodPost {
 		url := r.FormValue("url")
@@ -47,6 +51,15 @@ func urlFormSubmitHandler(w http.ResponseWriter, r *http.Request) {
 		urlMapMu.Lock()
 		urlMap[shortUrl] = url
 		urlMapMu.Unlock()
+
+		data := ShortUrlResponseData{
+			ShortenedUrl: shortUrl,
+		}
+		w.Header().Set("Content-Type", "text/html")
+		if err := tmpl.Execute(w, data); err != nil {
+			http.Error(w, "error rendering template", http.StatusInternalServerError)
+		}
+
 		fmt.Fprintf(w, "Shortened URL: %s\n", shortUrl)
 	} else {
 		http.Error(w, "Invalid request method", http.StatusMethodNotAllowed)

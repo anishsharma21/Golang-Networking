@@ -1,0 +1,44 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>URL Shortener</title>
+    <link
+      rel="stylesheet"
+      href="https://unpkg.com/franken-ui@1.1.0/dist/css/core.min.css"
+    />
+    <script
+      src="https://unpkg.com/franken-ui@1.1.0/dist/js/core.iife.js"
+      type="module"
+    ></script>
+    <script
+      src="https://unpkg.com/franken-ui@1.1.0/dist/js/icon.iife.js"
+      type="module"
+    ></script>
+    <script src="https://unpkg.com/htmx.org@2.0.4"></script>
+  </head>
+  <body uk-height-viewport class="uk-flex uk-flex-center">
+    <div class="uk-card uk-width-1-3 uk-margin-auto-vertical">
+      <div class="uk-card-header">
+        <h1 class="uk-card-title uk-h1 uk-text-center">Enter a URL</h1>
+      </div>
+      <div class="uk-card-body">
+        <form
+          hx-post="/shorten-url"
+          hx-target="#url-response"
+          hx-swap="innerHTML"
+        >
+          <input
+            class="uk-input"
+            type="url"
+            name="url"
+            placeholder="https://example.com"
+            required
+          />
+        </form>
+        <div id="url-response"></div>
+      </div>
+    </div>
+  </body>
+</html>
