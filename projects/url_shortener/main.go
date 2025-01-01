@@ -8,15 +8,31 @@ import (
 	"sync"
 	"text/template"
 	"time"
+
+	"database/sql"
+
+	_ "github.com/mattn/go-sqlite3"
 )
 
 const port uint16 = 8080
 
 var tmpl = template.Must(template.ParseGlob("templates/*.html"))
-var urlMap = make(map[string]string)
-var urlMapMu sync.Mutex
+var db *sql.DB
+var dbMu sync.Mutex
 
 func main() {
+	var err error
+	db, err = sql.Open("sqlite3", "./url_shortener.db")
+	if err != nil {
+		log.Fatal(err)
+	}
+	defer db.Close()
+
+	err = createTable()
+	if err != nil {
+		log.Fatal(err)
+	}
+
 	mux := http.NewServeMux()
 
 	mux.HandleFunc("GET /", baseHandler)
@@ -27,16 +43,36 @@ func main() {
 	log.Fatal(http.ListenAndServe(fmt.Sprintf(":%d", port), mux))
 }
 
+func createTable() error {
+	query := `
+	CREATE TABLE IF NOT EXISTS urls (
+		id INTEGER PRIMARY KEY AUTOINCREMENT,
+		short_url TEXT NOT NULL,
+		original_url TEXT NOT NULL
+	);`
+	_, err := db.Exec(query)
+	return err
+}
+
 func redirectHandler(w http.ResponseWriter, r *http.Request) {
 	if r.Method == http.MethodGet {
-		urlMapMu.Lock()
-		if url, ok := urlMap[fmt.Sprintf("http://localhost:%d%s", port, r.URL.Path)]; ok {
-			http.Redirect(w, r, url, http.StatusFound)
-		} else {
-			log.Printf("Error (redirectHandler): http://localhost:%d%s not found in map", port, r.URL.Path)
-			http.Error(w, "Original URL not found", http.StatusNotFound)
+		shortUrl := fmt.Sprintf("http://localhost:%d%s", port, r.URL.Path)
+		var originalUrl string
+
+		dbMu.Lock()
+		err := db.QueryRow("SELECT original_url FROM urls WHERE short_url = ?", shortUrl).Scan(&originalUrl)
+		dbMu.Unlock()
+
+		if err != nil {
+			if err == sql.ErrNoRows {
+				http.Error(w, "Original URL not found", http.StatusNotFound)
+			} else {
+				http.Error(w, "Database error", http.StatusInternalServerError)
+			}
+			return
 		}
-		urlMapMu.Unlock()
+
+		http.Redirect(w, r, originalUrl, http.StatusFound)
 	}
 }
 
@@ -48,9 +84,15 @@ func urlFormSubmitHandler(w http.ResponseWriter, r *http.Request) {
 	if r.Method == http.MethodPost {
 		url := r.FormValue("url")
 		shortUrl := fmt.Sprintf("http://localhost:%d/r/%s", port, randomString(5)) 
-		urlMapMu.Lock()
-		urlMap[shortUrl] = url
-		urlMapMu.Unlock()
+
+		dbMu.Lock()
+		_, err := db.Exec("INSERT INTO urls (short_url, original_url) VALUES (?, ?)", shortUrl, url)
+		dbMu.Unlock()
+
+		if err != nil {
+			http.Error(w, "Database error", http.StatusInternalServerError)
+			return
+		}
 
 		data := ShortUrlResponseData{
 			ShortenedUrl: shortUrl,
