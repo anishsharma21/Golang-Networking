@@ -9,7 +9,7 @@ import (
 
 func BasePageHandler(w http.ResponseWriter, r *http.Request) {
 	if r.Method == http.MethodGet {
-		basePage := templates.Base()
+		basePage := templates.Base("hi")
 		err := basePage.Render(context.Background(), w)
 		if err != nil {
 			http.Error(w, "Unable to load the page", http.StatusInternalServerError)

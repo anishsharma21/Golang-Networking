@@ -1,5 +1,16 @@
 package templates
 
-templ Base() {
-    <div>Hello, world!</div>
+templ Base(yield string) {
+    <html>
+        <head>
+            <title>Todo List</title>
+            <link rel="stylesheet" href="../css/output.css">
+        </head>
+        <body>
+            // tailwind classes
+            <div class="bg-gray-200 p-4">
+                <h1>Todo List</h1>
+            </div>
+        </body>
+    </html>
 }
