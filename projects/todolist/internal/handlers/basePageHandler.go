@@ -10,10 +10,7 @@ import (
 
 func BasePageHandler(w http.ResponseWriter, r *http.Request) {
 	if r.Method == http.MethodGet {
-		todos := []types.Todo{
-			{Text: "Clean dishes", Done: false},
-			{Text: "Walk the dog", Done: true},
-		}
+		todos := []types.Todo{}
 		basePage := templates.Base(todos)
 		err := basePage.Render(context.Background(), w)
 		if err != nil {
