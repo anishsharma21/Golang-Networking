@@ -5,11 +5,16 @@ import (
 	"net/http"
 
 	"github.com/anishsharma21/Golang-Networking/projects/todolist/public/templates"
+	"github.com/anishsharma21/Golang-Networking/projects/todolist/types"
 )
 
 func BasePageHandler(w http.ResponseWriter, r *http.Request) {
 	if r.Method == http.MethodGet {
-		basePage := templates.Base("hi")
+		todos := []types.Todo{
+			{Text: "Clean dishes", Done: false},
+			{Text: "Walk the dog", Done: true},
+		}
+		basePage := templates.Base(todos)
 		err := basePage.Render(context.Background(), w)
 		if err != nil {
 			http.Error(w, "Unable to load the page", http.StatusInternalServerError)
